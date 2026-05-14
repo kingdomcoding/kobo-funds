@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Prisma } from '@prisma/client';
 import { db } from './db.js';
@@ -7,6 +8,11 @@ const IDEMP_TTL_HOURS = 24;
 
 function getRoutePath(req: FastifyRequest): string {
   return req.routeOptions.url ?? req.url;
+}
+
+function hashRequestBody(body: unknown): string {
+  const serialised = body === undefined ? '' : JSON.stringify(body);
+  return crypto.createHash('sha256').update(serialised).digest('hex');
 }
 
 export async function idempotencyPreHandler(
@@ -23,13 +29,15 @@ export async function idempotencyPreHandler(
     );
   }
   const userId = req.user?.sub ?? null;
+  const requestHash = hashRequestBody(req.body);
   const existing = await db.idempotencyKey.findUnique({ where: { key } });
   if (existing) {
-    if (
-      existing.method !== req.method ||
-      existing.path !== getRoutePath(req) ||
-      existing.userId !== userId
-    ) {
+    const same =
+      existing.method === req.method &&
+      existing.path === getRoutePath(req) &&
+      existing.userId === userId &&
+      existing.requestHash === requestHash;
+    if (!same) {
       throw new AppError(
         409,
         'IDEMPOTENCY_CONFLICT',
@@ -39,7 +47,7 @@ export async function idempotencyPreHandler(
     await reply.status(existing.status).send(existing.responseJson);
     return;
   }
-  req.idempotency = { key, userId };
+  req.idempotency = { key, userId, requestHash };
 }
 
 export async function recordIdempotentResponse(
@@ -55,6 +63,7 @@ export async function recordIdempotentResponse(
       method: req.method,
       path: getRoutePath(req),
       userId: meta.userId,
+      requestHash: meta.requestHash,
       status,
       responseJson: body,
       expiresAt: new Date(Date.now() + IDEMP_TTL_HOURS * 60 * 60 * 1000),

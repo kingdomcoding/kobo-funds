@@ -251,14 +251,15 @@ model AuditEntry {
 // ============================================================
 
 model IdempotencyKey {
-  key          String   @id
-  method       String
-  path         String
-  userId       String?
-  status       Int
-  responseJson Json
-  createdAt    DateTime @default(now())
-  expiresAt    DateTime
+  key             String   @id
+  method          String
+  path            String
+  userId          String?
+  requestHash     String
+  status          Int
+  responseJson    Json
+  createdAt       DateTime @default(now())
+  expiresAt       DateTime
 
   @@index([expiresAt])
 }
