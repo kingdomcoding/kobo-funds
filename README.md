@@ -110,14 +110,16 @@ Do **not** send real BVNs, NINs, card numbers, or money to this API.
 
 ## Production deployment (this box)
 
-The API is hosted on a single production box and fronted by Nginx Proxy Manager at `kobo-funds.tail4eddd6.ts.net` (Let's Encrypt TLS, HTTP/2).
+The API runs on a single production box behind **Tailscale Funnel** at `kobo-funds.tail4eddd6.ts.net` (TLS via Let's Encrypt, managed by Tailscale; no public DNS or cert work to maintain).
 
 ```bash
 # Generate .env.prod with strong secrets (do not commit)
-docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec api pnpm prisma migrate deploy
-docker compose -f docker-compose.prod.yml exec api pnpm seed
-# In Nginx Proxy Manager UI: add Proxy Host kobo-funds.tail4eddd6.ts.net → 127.0.0.1:8081
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+docker compose --env-file .env.prod -f docker-compose.prod.yml exec api sh -c 'pnpm exec prisma migrate deploy && pnpm exec tsx prisma/seed.ts'
+
+# One-time Tailscale Funnel wiring:
+#   tailscale up --hostname=kobo-funds
+#   tailscale funnel --bg 8081
 ```
 
 ## Disclaimer
