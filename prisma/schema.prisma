@@ -1,0 +1,264 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ACCOUNTS
+// ============================================================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  kyc           Kyc?
+  wallets       Wallet[]
+  holdings      Holding[]
+  transactions  Transaction[]
+  auditEntries  AuditEntry[]
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ============================================================
+// KYC
+// ============================================================
+
+enum KycTier {
+  TIER_0
+  TIER_1
+  TIER_2
+  TIER_3
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING_VENDOR
+  APPROVED
+  REJECTED
+}
+
+model Kyc {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier           KycTier   @default(TIER_0)
+  status         KycStatus @default(NOT_STARTED)
+  bvnLast4       String?
+  ninLast4       String?
+  vendorRef      String?
+  rejectedReason String?
+  updatedAt      DateTime  @updatedAt
+}
+
+// ============================================================
+// FUNDS (the catalogue)
+// ============================================================
+
+enum FundKind {
+  MONEY_MARKET
+  INCOME
+  BALANCED
+  DOLLAR
+  HALAL
+}
+
+enum Currency {
+  NGN
+  USD
+}
+
+model Fund {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  kind           FundKind
+  currency       Currency
+  unitPriceMinor BigInt
+  settlementDays Int      @default(0)
+  isOpen         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  navHistory   NavSnapshot[]
+  holdings     Holding[]
+  transactions Transaction[]
+
+  @@index([kind])
+}
+
+model NavSnapshot {
+  id             String   @id @default(cuid())
+  fundId         String
+  fund           Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  asOf           DateTime
+  unitPriceMinor BigInt
+
+  @@unique([fundId, asOf])
+  @@index([fundId, asOf])
+}
+
+// ============================================================
+// WALLETS (one per user per currency)
+// ============================================================
+
+model Wallet {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currency            Currency
+  balanceMinor        BigInt   @default(0)
+  settledBalanceMinor BigInt   @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  ledgerEntries LedgerEntry[]
+
+  @@unique([userId, currency])
+  @@index([userId])
+}
+
+// ============================================================
+// LEDGER — single-entry today; ADR-flagged to migrate to double-entry Day 2
+// ============================================================
+
+enum LedgerEntryKind {
+  WALLET_FUND_IN
+  WALLET_FUND_OUT
+  SUBSCRIPTION_DEBIT
+  REDEMPTION_CREDIT
+}
+
+model LedgerEntry {
+  id           String          @id @default(cuid())
+  walletId     String
+  wallet       Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  kind         LedgerEntryKind
+  amountMinor  BigInt
+  balanceAfter BigInt
+  txId         String?
+  reference    String
+  createdAt    DateTime        @default(now())
+
+  @@index([walletId, createdAt])
+  @@index([txId])
+}
+
+// ============================================================
+// TRANSACTIONS — user-facing transactions (subscription / redemption / top-up)
+// ============================================================
+
+enum TransactionKind {
+  TOP_UP_CARD
+  TOP_UP_NIP
+  SUBSCRIPTION
+  REDEMPTION
+}
+
+enum TransactionStatus {
+  PENDING
+  SETTLED
+  FAILED
+  REVERSED
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fundId         String?
+  fund           Fund?             @relation(fields: [fundId], references: [id])
+  kind           TransactionKind
+  status         TransactionStatus @default(PENDING)
+  currency       Currency
+  amountMinor    BigInt
+  units          Decimal?          @db.Decimal(28, 8)
+  unitPriceMinor BigInt?
+  settlementDate DateTime?
+  externalRef    String?
+  idempotencyKey String?           @unique
+  failedReason   String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// ============================================================
+// HOLDINGS — denormalised; rebuildable from transactions
+// ============================================================
+
+model Holding {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fundId    String
+  fund      Fund     @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  units     Decimal  @default(0) @db.Decimal(28, 8)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, fundId])
+  @@index([userId])
+}
+
+// ============================================================
+// AUDIT — append-only; every state change writes one row
+// ============================================================
+
+model AuditEntry {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  subject   String
+  actorType String   @default("user")
+  metadata  Json?
+  requestId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action])
+  @@index([subject])
+}
+
+// ============================================================
+// IDEMPOTENCY KEYS
+// ============================================================
+
+model IdempotencyKey {
+  key          String   @id
+  method       String
+  path         String
+  userId       String?
+  status       Int
+  responseJson Json
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}
