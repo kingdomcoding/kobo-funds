@@ -1,38 +1,32 @@
 # syntax=docker/dockerfile:1.7
 
-# --- base ---
-FROM node:20-alpine AS base
+FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 WORKDIR /app
 
-# --- deps ---
+# --- deps (all, for build + generate) ---
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
-# --- builder ---
+# --- builder: generate Prisma client + compile TS ---
 FROM deps AS builder
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
-RUN pnpm prisma generate
+RUN pnpm exec prisma generate
 RUN pnpm build
 
-# --- runtime ---
-FROM node:20-alpine AS runtime
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
-WORKDIR /app
+# --- runtime (production deps only + generated artefacts) ---
+FROM base AS runtime
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY prisma ./prisma
-RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
-    pnpm install --prod --frozen-lockfile
-RUN pnpm prisma generate
-
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 
 EXPOSE 3000
