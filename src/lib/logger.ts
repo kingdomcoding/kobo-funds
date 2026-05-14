@@ -1,7 +1,7 @@
-import pino, { type LoggerOptions } from 'pino';
+import pino, { type Logger, type LoggerOptions } from 'pino';
 import { env } from '../config/env.js';
 
-const baseOptions: LoggerOptions = {
+export const loggerOptions: LoggerOptions = {
   level: env.LOG_LEVEL,
   redact: {
     paths: [
@@ -22,10 +22,9 @@ const baseOptions: LoggerOptions = {
     ],
     censor: '[REDACTED]',
   },
+  ...(env.NODE_ENV === 'development'
+    ? { transport: { target: 'pino-pretty', options: { colorize: true } } }
+    : {}),
 };
 
-export const logger = pino(
-  env.NODE_ENV === 'development'
-    ? { ...baseOptions, transport: { target: 'pino-pretty', options: { colorize: true } } }
-    : baseOptions,
-);
+export const logger: Logger = pino(loggerOptions);
