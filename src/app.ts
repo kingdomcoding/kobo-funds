@@ -10,6 +10,8 @@ import { env } from './config/env.js';
 import { loggerOptions } from './lib/logger.js';
 import { isAppError } from './lib/errors.js';
 import { accountsRoutes } from './modules/accounts/routes.js';
+import { fundsRoutes } from './modules/funds/routes.js';
+import { holdingsRoutes } from './modules/holdings/routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -65,6 +67,8 @@ export async function buildApp() {
   });
 
   await app.register(accountsRoutes, { prefix: '/v1/accounts' });
+  await app.register(fundsRoutes, { prefix: '/v1/funds' });
+  await app.register(holdingsRoutes, { prefix: '/v1/holdings' });
 
   return app;
 }
