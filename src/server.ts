@@ -3,17 +3,30 @@ import { env } from './config/env.js';
 import { db } from './lib/db.js';
 import { redis } from './lib/redis.js';
 import { logger } from './lib/logger.js';
-import { startKycWorker } from './lib/queue.js';
+import { settlementQueue, startKycWorker, startSettlementWorker } from './lib/queue.js';
 
 async function main(): Promise<void> {
   const app = await buildApp();
   const kycWorker = startKycWorker();
+  const settlementWorker = startSettlementWorker();
+
+  await settlementQueue.add(
+    'tick',
+    {},
+    {
+      repeat: { every: 60_000 },
+      removeOnComplete: 50,
+      removeOnFail: 50,
+      jobId: 'settlement-tick',
+    },
+  );
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'shutting down');
     try {
       await app.close();
       await kycWorker.close();
+      await settlementWorker.close();
       await db.$disconnect();
       redis.disconnect();
     } catch (err) {
