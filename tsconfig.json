@@ -22,6 +22,6 @@
     "sourceMap": true,
     "removeComments": false
   },
-  "include": ["src/**/*", "prisma/seed.ts", "test/**/*"],
+  "include": ["src/**/*", "prisma/seed.ts", "test/**/*", "scripts/**/*"],
   "exclude": ["node_modules", "dist"]
 }
