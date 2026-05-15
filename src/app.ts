@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import jwt from '@fastify/jwt';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
-import rateLimit from '@fastify/rate-limit';
+import { registerRateLimits } from './lib/rateLimit.js';
 import { ulid } from 'ulid';
 import { env } from './config/env.js';
 import { loggerOptions } from './lib/logger.js';
@@ -49,7 +49,7 @@ export async function buildApp() {
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: true, credentials: false });
-  await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
+  await registerRateLimits(app);
   await app.register(jwt, { secret: env.JWT_ACCESS_SECRET });
 
   await app.register(swagger, {

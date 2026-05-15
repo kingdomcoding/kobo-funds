@@ -1,11 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { db } from '../../lib/db.js';
 import { redis } from '../../lib/redis.js';
+import { skipRateLimitConfig } from '../../lib/rateLimit.js';
 
 export async function healthRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/healthz', async () => ({ status: 'ok' }));
+  app.get('/healthz', skipRateLimitConfig, async () => ({ status: 'ok' }));
 
-  app.get('/readyz', async (_req, reply) => {
+  app.get('/readyz', skipRateLimitConfig, async (_req, reply) => {
     const checks: Record<string, 'ok' | 'fail'> = { db: 'fail', redis: 'fail' };
     try {
       await db.$queryRaw`SELECT 1`;

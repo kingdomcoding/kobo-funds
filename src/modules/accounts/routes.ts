@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { db } from '../../lib/db.js';
 import { writeAudit } from '../../lib/audit.js';
 import { AppError } from '../../lib/errors.js';
+import { authLimitConfig } from '../../lib/rateLimit.js';
 import { issueTokens, requireAuth } from './auth.js';
 
 const SignupBody = z.object({
@@ -24,7 +25,7 @@ const RefreshBody = z.object({
 });
 
 export async function accountsRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/signup', async (req, reply) => {
+  app.post('/signup', authLimitConfig, async (req, reply) => {
     const parsed = SignupBody.safeParse(req.body);
     if (!parsed.success) throw new AppError(400, 'VALIDATION', z.prettifyError(parsed.error));
     const body = parsed.data;
@@ -57,7 +58,7 @@ export async function accountsRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post('/login', async (req, reply) => {
+  app.post('/login', authLimitConfig, async (req, reply) => {
     const parsed = LoginBody.safeParse(req.body);
     if (!parsed.success) throw new AppError(400, 'VALIDATION', z.prettifyError(parsed.error));
     const body = parsed.data;
@@ -80,7 +81,7 @@ export async function accountsRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post('/refresh', async (req, reply) => {
+  app.post('/refresh', authLimitConfig, async (req, reply) => {
     const parsed = RefreshBody.safeParse(req.body);
     if (!parsed.success) throw new AppError(400, 'VALIDATION', z.prettifyError(parsed.error));
     const { refreshToken } = parsed.data;
