@@ -11,7 +11,7 @@ type Seeded = {
 };
 
 export async function resetDb(): Promise<void> {
-  const tableNames = ['AuditEntry', 'IdempotencyKey', 'LedgerEntry', 'Holding', 'NavSnapshot', 'Transaction', 'Wallet', 'Kyc', 'RefreshToken', 'Fund', 'User'];
+  const tableNames = ['Posting', 'JournalEntry', 'Account', 'AuditEntry', 'IdempotencyKey', 'LedgerEntry', 'Holding', 'NavSnapshot', 'Transaction', 'Wallet', 'Kyc', 'RefreshToken', 'Fund', 'User'];
   for (const t of tableNames) {
     await db.$executeRawUnsafe(`TRUNCATE TABLE "${t}" CASCADE`);
   }
