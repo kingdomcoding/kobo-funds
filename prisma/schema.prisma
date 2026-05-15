@@ -263,3 +263,56 @@ model IdempotencyKey {
 
   @@index([expiresAt])
 }
+
+// ============================================================
+// DOUBLE-ENTRY LEDGER
+// ============================================================
+
+enum AccountKind {
+  USER_WALLET
+  USER_WALLET_PENDING
+  USER_UNITS
+  BANK_SUSPENSE
+  BANK_CASH
+  FUND_UNITS_OUTSTANDING
+}
+
+model Account {
+  id        String      @id @default(cuid())
+  key       String      @unique
+  kind      AccountKind
+  currency  Currency?
+  metadata  Json?
+  createdAt DateTime    @default(now())
+
+  postings Posting[]
+
+  @@index([kind])
+}
+
+model JournalEntry {
+  id        String   @id @default(cuid())
+  memo      String
+  txId      String?
+  createdAt DateTime @default(now())
+
+  postings Posting[]
+
+  @@index([txId])
+  @@index([createdAt])
+}
+
+model Posting {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  amountMinor    BigInt
+  currency       Currency
+  createdAt      DateTime     @default(now())
+
+  @@index([accountId])
+  @@index([journalEntryId])
+  @@index([currency])
+}
