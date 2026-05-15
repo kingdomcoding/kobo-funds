@@ -3,12 +3,19 @@ import { env } from './config/env.js';
 import { db } from './lib/db.js';
 import { redis } from './lib/redis.js';
 import { logger } from './lib/logger.js';
-import { settlementQueue, startKycWorker, startSettlementWorker } from './lib/queue.js';
+import {
+  navQueue,
+  settlementQueue,
+  startKycWorker,
+  startNavWorker,
+  startSettlementWorker,
+} from './lib/queue.js';
 
 async function main(): Promise<void> {
   const app = await buildApp();
   const kycWorker = startKycWorker();
   const settlementWorker = startSettlementWorker();
+  const navWorker = startNavWorker();
 
   await settlementQueue.add(
     'tick',
@@ -20,6 +27,16 @@ async function main(): Promise<void> {
       jobId: 'settlement-tick',
     },
   );
+  await navQueue.add(
+    'daily',
+    {},
+    {
+      repeat: { pattern: '0 0 * * 1-5' },
+      removeOnComplete: 50,
+      removeOnFail: 50,
+      jobId: 'nav-daily',
+    },
+  );
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'shutting down');
@@ -27,6 +44,7 @@ async function main(): Promise<void> {
       await app.close();
       await kycWorker.close();
       await settlementWorker.close();
+      await navWorker.close();
       await db.$disconnect();
       redis.disconnect();
     } catch (err) {

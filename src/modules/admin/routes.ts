@@ -14,6 +14,11 @@ async function requireAdmin(req: FastifyRequest, _reply: FastifyReply): Promise<
 type ReconcileRow = { currency: 'NGN' | 'USD'; net: bigint | null };
 
 export async function adminRoutes(app: FastifyInstance): Promise<void> {
+  app.post('/nav-close', { preHandler: requireAdmin }, async () => {
+    const { closeAllFundNavs } = await import('../../jobs/navClose.js');
+    return closeAllFundNavs(db);
+  });
+
   app.get('/reconcile', { preHandler: requireAdmin }, async () => {
     const rows = await db.$queryRaw<ReconcileRow[]>`
       SELECT "currency"::text AS currency, SUM("amountMinor")::bigint AS net

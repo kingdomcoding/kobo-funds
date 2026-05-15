@@ -9,9 +9,11 @@ const connection: ConnectionOptions = redis;
 
 export type KycJobData = { userId: string; vendorRef: string };
 export type SettlementJobData = Record<string, never>;
+export type NavJobData = Record<string, never>;
 
 export const kycQueue = new Queue<KycJobData>('kyc', { connection });
 export const settlementQueue = new Queue<SettlementJobData>('settlement', { connection });
+export const navQueue = new Queue<NavJobData>('nav', { connection });
 
 export function startKycWorker(): Worker<KycJobData> {
   const worker = new Worker<KycJobData>(
@@ -105,6 +107,22 @@ export function startSettlementWorker(): Worker<SettlementJobData> {
   );
   worker.on('failed', (job, err) => {
     logger.error({ jobId: job?.id, err }, 'settlement worker job failed');
+  });
+  return worker;
+}
+
+export function startNavWorker(): Worker<NavJobData> {
+  const worker = new Worker<NavJobData>(
+    'nav',
+    async () => {
+      const { closeAllFundNavs } = await import('../jobs/navClose.js');
+      const out = await closeAllFundNavs(db);
+      return out;
+    },
+    { connection },
+  );
+  worker.on('failed', (job, err) => {
+    logger.error({ jobId: job?.id, err }, 'nav worker job failed');
   });
   return worker;
 }
