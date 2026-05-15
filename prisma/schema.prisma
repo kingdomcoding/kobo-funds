@@ -199,7 +199,7 @@ model Transaction {
   units          Decimal?          @db.Decimal(28, 8)
   unitPriceMinor BigInt?
   settlementDate DateTime?
-  externalRef    String?
+  externalRef    String?           @unique
   idempotencyKey String?           @unique
   failedReason   String?
   createdAt      DateTime          @default(now())

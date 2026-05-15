@@ -16,6 +16,7 @@ import { walletRoutes } from './modules/wallet/routes.js';
 import { subscriptionsRoutes } from './modules/subscriptions/routes.js';
 import { kycRoutes } from './modules/kyc/routes.js';
 import { healthRoutes } from './modules/health/routes.js';
+import { paymentsRoutes } from './modules/payments/routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -25,6 +26,24 @@ export async function buildApp() {
     requestIdLogLabel: 'requestId',
     trustProxy: true,
   });
+
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string' },
+    (req, body, done) => {
+      const text = typeof body === 'string' ? body : body.toString('utf8');
+      req.rawBody = text;
+      if (text.length === 0) {
+        done(null, undefined);
+        return;
+      }
+      try {
+        done(null, JSON.parse(text));
+      } catch (err) {
+        done(err as Error, undefined);
+      }
+    },
+  );
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: true, credentials: false });
@@ -77,6 +96,7 @@ export async function buildApp() {
   await app.register(walletRoutes, { prefix: '/v1/wallet' });
   await app.register(subscriptionsRoutes, { prefix: '/v1/subscriptions' });
   await app.register(kycRoutes, { prefix: '/v1/kyc' });
+  await app.register(paymentsRoutes, { prefix: '/v1/payments' });
 
   return app;
 }
