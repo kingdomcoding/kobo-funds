@@ -5,6 +5,7 @@ import { env } from '../../config/env.js';
 import { AppError } from '../../lib/errors.js';
 import { verifyPayload } from '../../lib/webhookSignature.js';
 import { writeAudit } from '../../lib/audit.js';
+import { postJournal } from '../../lib/journal.js';
 
 const WebhookBody = z.object({
   event: z.enum(['payment.succeeded', 'payment.failed']),
@@ -62,6 +63,23 @@ export async function paymentsRoutes(app: FastifyInstance): Promise<void> {
             data: { settledBalanceMinor: { increment: txn.amountMinor } },
           });
         }
+        await postJournal({
+          tx,
+          txId: txn.id,
+          memo: `Reconcile top-up ${txn.externalRef ?? txn.id}`,
+          postings: [
+            {
+              accountKey: `bank:cash:${txn.currency}`,
+              amountMinor: txn.amountMinor,
+              currency: txn.currency,
+            },
+            {
+              accountKey: `bank:suspense:${txn.currency}`,
+              amountMinor: -txn.amountMinor,
+              currency: txn.currency,
+            },
+          ],
+        });
       }
 
       await writeAudit({

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { db } from '../../lib/db.js';
 import { writeAudit } from '../../lib/audit.js';
+import { postJournal } from '../../lib/journal.js';
 import { AppError } from '../../lib/errors.js';
 import {
   idempotencyPreHandler,
@@ -93,6 +94,45 @@ export async function subscriptionsRoutes(app: FastifyInstance): Promise<void> {
           create: { userId, fundId: fund.id, units },
           update: { units: { increment: units } },
         });
+
+        const unitsScaled = BigInt(
+          units.mul(new Prisma.Decimal('1e8')).toFixed(0, Prisma.Decimal.ROUND_DOWN),
+        );
+        await postJournal({
+          tx,
+          txId: transaction.id,
+          memo: `Subscription cash ${fund.code} from ${userId}`,
+          postings: [
+            {
+              accountKey: `user:wallet:${userId}:${fund.currency}`,
+              amountMinor: -body.amountMinor,
+              currency: fund.currency,
+            },
+            {
+              accountKey: `bank:cash:${fund.currency}`,
+              amountMinor: body.amountMinor,
+              currency: fund.currency,
+            },
+          ],
+        });
+        await postJournal({
+          tx,
+          txId: transaction.id,
+          memo: `Issue units ${fund.code} to ${userId}`,
+          postings: [
+            {
+              accountKey: `fund:units-outstanding:${fund.code}`,
+              amountMinor: -unitsScaled,
+              currency: fund.currency,
+            },
+            {
+              accountKey: `user:units:${userId}:${fund.code}`,
+              amountMinor: unitsScaled,
+              currency: fund.currency,
+            },
+          ],
+        });
+
         await writeAudit({
           tx,
           userId,

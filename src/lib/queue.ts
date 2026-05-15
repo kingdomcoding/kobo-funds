@@ -3,6 +3,7 @@ import { redis } from './redis.js';
 import { db } from './db.js';
 import { writeAudit } from './audit.js';
 import { logger } from './logger.js';
+import { postJournal } from './journal.js';
 
 const connection: ConnectionOptions = redis;
 
@@ -69,6 +70,23 @@ export function startSettlementWorker(): Worker<SettlementJobData> {
             await tx.wallet.update({
               where: { id: wallet.id },
               data: { settledBalanceMinor: { increment: t.amountMinor } },
+            });
+            await postJournal({
+              tx,
+              txId: t.id,
+              memo: `Settle redemption pending->wallet ${t.id}`,
+              postings: [
+                {
+                  accountKey: `user:wallet-pending:${t.userId}:${t.currency}`,
+                  amountMinor: -t.amountMinor,
+                  currency: t.currency,
+                },
+                {
+                  accountKey: `user:wallet:${t.userId}:${t.currency}`,
+                  amountMinor: t.amountMinor,
+                  currency: t.currency,
+                },
+              ],
             });
           }
           await writeAudit({

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../../lib/db.js';
 import { writeAudit } from '../../lib/audit.js';
+import { postJournal } from '../../lib/journal.js';
 import { AppError } from '../../lib/errors.js';
 import {
   idempotencyPreHandler,
@@ -85,6 +86,23 @@ export async function walletRoutes(app: FastifyInstance): Promise<void> {
               txId: transaction.id,
               reference: `Card top-up ****${body.card.last4}`,
             },
+          });
+          await postJournal({
+            tx,
+            txId: transaction.id,
+            memo: `Top-up card ****${body.card.last4}`,
+            postings: [
+              {
+                accountKey: `bank:suspense:${body.currency}`,
+                amountMinor: -body.amountMinor,
+                currency: body.currency,
+              },
+              {
+                accountKey: `user:wallet:${userId}:${body.currency}`,
+                amountMinor: body.amountMinor,
+                currency: body.currency,
+              },
+            ],
           });
           await writeAudit({
             tx,
