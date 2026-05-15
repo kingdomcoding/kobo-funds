@@ -48,6 +48,12 @@ Money everywhere is stored as `BigInt` in **scaled minor units** (NGN: 1 unit = 
 
 A BullMQ settlement worker runs every 60s and flips `PENDING` transactions whose `settlementDate` has passed to `SETTLED`. A payments webhook endpoint accepts HMAC-signed inbound webhooks (PSP confirmations) and idempotently flips `TOP_UP_*` transactions to `SETTLED` or `FAILED`.
 
+A NAV close job runs weekdays at 00:00 UTC and emits a NavSnapshot per fund + updates `Fund.unitPriceMinor`. Admin-triggerable via `POST /v1/admin/nav-close`. Reconciliation lives at `GET /v1/admin/reconcile`, which sums `Posting.amountMinor` group-by-currency and asserts each total is zero — proof the double-entry ledger is balanced. Both routes require an `X-Admin-Token` header.
+
+Per-user rate limiting (60/min general bucket, 5/min auth bucket) is keyed by JWT-sub when authenticated, falling back to IP. Health checks opt out. Counters live in Redis so they survive a process restart and span horizontally-scaled replicas.
+
+Monthly statements are HTML-rendered at `GET /v1/statements/:userId/:yearMonth` — list of transactions, closing balances per currency, active holdings. User can only fetch own statements; admin token can fetch any. All user-supplied strings are XSS-escaped.
+
 ## Request lifecycle: a single fund subscription
 
 ```
