@@ -19,6 +19,7 @@ import { healthRoutes } from './modules/health/routes.js';
 import { paymentsRoutes } from './modules/payments/routes.js';
 import { redemptionsRoutes } from './modules/redemptions/routes.js';
 import { adminRoutes } from './modules/admin/routes.js';
+import { statementsRoutes } from './modules/statements/routes.js';
 
 export async function buildApp() {
   const app = Fastify({
@@ -101,6 +102,7 @@ export async function buildApp() {
   await app.register(paymentsRoutes, { prefix: '/v1/payments' });
   await app.register(redemptionsRoutes, { prefix: '/v1/redemptions' });
   await app.register(adminRoutes, { prefix: '/v1/admin' });
+  await app.register(statementsRoutes, { prefix: '/v1/statements' });
 
   return app;
 }
