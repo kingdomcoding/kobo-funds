@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest, RouteShorthandOptions } from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import { redis } from './redis.js';
+import { env } from '../config/env.js';
 
 function userKey(req: FastifyRequest): string {
   const sub = req.user?.sub;
@@ -9,6 +10,14 @@ function userKey(req: FastifyRequest): string {
 }
 
 export async function registerRateLimits(app: FastifyInstance): Promise<void> {
+  if (env.NODE_ENV === 'test') {
+    await app.register(rateLimit, {
+      max: 100_000,
+      timeWindow: '1 minute',
+      skipOnError: true,
+    });
+    return;
+  }
   await app.register(rateLimit, {
     redis,
     keyGenerator: userKey,
