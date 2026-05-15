@@ -12,6 +12,8 @@ const EnvSchema = z.object({
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(30),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   PUBLIC_BASE_URL: z.string().url().default('http://localhost:3000'),
+  WEBHOOK_HMAC_SECRET: z.string().min(32),
+  ADMIN_RECONCILE_TOKEN: z.string().min(16),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
