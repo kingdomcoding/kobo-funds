@@ -73,4 +73,32 @@ export function naira(n: bigint): bigint {
   return n * 100n * 10_000n;
 }
 
+export async function seedHolding(userId: string, fundCode: string, units: string): Promise<void> {
+  const fund = await db.fund.findUniqueOrThrow({ where: { code: fundCode } });
+  await db.holding.upsert({
+    where: { userId_fundId: { userId, fundId: fund.id } },
+    create: { userId, fundId: fund.id, units },
+    update: { units },
+  });
+}
+
+export async function seedPendingTransaction(opts: {
+  userId: string;
+  externalRef: string;
+  amountMinor: bigint;
+  currency?: 'NGN' | 'USD';
+}): Promise<string> {
+  const tx = await db.transaction.create({
+    data: {
+      userId: opts.userId,
+      kind: 'TOP_UP_CARD',
+      status: 'PENDING',
+      currency: opts.currency ?? 'NGN',
+      amountMinor: opts.amountMinor,
+      externalRef: opts.externalRef,
+    },
+  });
+  return tx.id;
+}
+
 export { db, Prisma };

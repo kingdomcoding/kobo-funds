@@ -8,6 +8,10 @@ process.env.JWT_REFRESH_SECRET =
   process.env.JWT_REFRESH_SECRET ?? 'b'.repeat(48);
 process.env.JWT_ACCESS_TTL = process.env.JWT_ACCESS_TTL ?? '15m';
 process.env.JWT_REFRESH_TTL_DAYS = process.env.JWT_REFRESH_TTL_DAYS ?? '30';
+process.env.WEBHOOK_HMAC_SECRET =
+  process.env.WEBHOOK_HMAC_SECRET ?? 'c'.repeat(48);
+process.env.ADMIN_RECONCILE_TOKEN =
+  process.env.ADMIN_RECONCILE_TOKEN ?? 'd'.repeat(32);
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ??
   'postgresql://kobo:kobo@localhost:55432/kobo_funds_test?schema=public';

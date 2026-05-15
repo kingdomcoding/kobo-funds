@@ -62,6 +62,8 @@ If any step fails, all five roll back together.
 - `/v1/funds` — `GET /`, `GET /:code` (with 30-day NAV history)
 - `/v1/wallet` — `GET /`, `POST /top-up/card` (simulated; `last4=0000` declines)
 - `/v1/subscriptions` — `POST /` (KYC-gated, idempotent, T+N settlement)
+- `/v1/redemptions` — `POST /` (KYC-gated, idempotent, T+N pending → settled via worker)
+- `/v1/payments` — `POST /webhook` (HMAC-verified, idempotent settlement)
 - `/v1/holdings` — `GET /` (Decimal-backed valuation; never float)
 
 ## Running locally
@@ -91,7 +93,7 @@ Suite includes the idempotent-replay test, the body-mismatch 409 test, the KYC c
 
 Phase 1 (MVP) shipped 2026-05-14. Roadmap:
 
-- [ ] Day 1: redemption flow + webhook HMAC verification + payments module
+- [x] Day 1: redemption flow + webhook HMAC verification + settlement worker
 - [ ] Day 2: migrate ledger to double-entry, with reconciliation endpoint (ADR)
 - [ ] Day 3: rate limiting per-user, NAV closing job, statement endpoint
 - [ ] Week 1: KYC tier feature gates expanded, hash-chained audit log, property-based ledger test

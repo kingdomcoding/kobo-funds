@@ -46,6 +46,8 @@ Wallet ── LedgerEntry              (1:N, append-only)
 
 Money everywhere is stored as `BigInt` in **scaled minor units** (NGN: 1 unit = 1/1,000,000 of a naira; USD: 1 unit = 1/1,000,000 of a dollar). Unit prices on `Fund.unitPriceMinor` use the same scale; units held in `Holding.units` are `Decimal(28,8)`. Multiplication for valuation is done with `Prisma.Decimal`, never with JavaScript floats.
 
+A BullMQ settlement worker runs every 60s and flips `PENDING` transactions whose `settlementDate` has passed to `SETTLED`. A payments webhook endpoint accepts HMAC-signed inbound webhooks (PSP confirmations) and idempotently flips `TOP_UP_*` transactions to `SETTLED` or `FAILED`.
+
 ## Request lifecycle: a single fund subscription
 
 ```
